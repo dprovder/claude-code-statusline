@@ -191,6 +191,14 @@ elif [ "$avail" -ge 72 ];  then barw=10
 elif [ "$avail" -ge 54 ];  then barw=6
 else                            barw=0
 fi
+# A palette may cap the bar so it matches a fixed-width bar shown elsewhere
+# (e.g. a sidebar rendering the same figure). Cap only, never grow: the tiers
+# above exist so a narrow terminal still fits, and forcing a width past them
+# would push the row over.
+case "${PAL_BAR_WIDTH:-}" in
+  ''|*[!0-9]*) ;;
+  *) [ "$barw" -gt "$PAL_BAR_WIDTH" ] && barw=$PAL_BAR_WIDTH ;;
+esac
 barw_max=$barw
 
 # ── Segments ──
@@ -294,6 +302,12 @@ if [ "$barw" -gt 0 ]; then
         grad $(( i * 100 / (barw - 1) ))
         bar+="${GRAD}█"
       fi
+    elif [ "$BAR_STYLE" = "solid" ]; then
+      # Trough in the fill colour, not C_EMPTY: "solid" means the bar is one
+      # colour end to end, with █ vs ░ carrying the fill. A dimmed trough makes
+      # it read as two bars, and it cannot be matched on surfaces that only get
+      # one colour per row.
+      bar+="${BUCKET}░"
     else
       bar+="${C_EMPTY}░"
     fi

@@ -309,12 +309,6 @@ if [ "$barw" -gt 0 ]; then
         grad $(( i * 100 / (barw - 1) ))
         bar+="${GRAD}${BAR_FILL}"
       fi
-    elif [ "$BAR_STYLE" = "solid" ]; then
-      # Trough in the fill colour, not C_EMPTY: "solid" means the bar is one
-      # colour end to end, with █ vs ░ carrying the fill. A dimmed trough makes
-      # it read as two bars, and it cannot be matched on surfaces that only get
-      # one colour per row.
-      bar+="${BUCKET}${BAR_EMPTY}"
     else
       bar+="${C_EMPTY}${BAR_EMPTY}"
     fi

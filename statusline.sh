@@ -28,7 +28,9 @@
 # Env overrides:
 #   CLAUDE_STATUSLINE_PALETTE=classic     original green→red gradient
 #   CLAUDE_STATUSLINE_PALETTE_FILE=<path> sourced RGB overrides, so a terminal
-#                                         theme can own the colours (see below)
+#                                         theme can own the colours (see below).
+#                                         Defaults to
+#                                         ~/.config/claude-code-statusline/palette.sh
 #   CLAUDE_STATUSLINE_RESERVE=<n>         columns kept clear for notifications
 #   CLAUDE_STATUSLINE_COLUMNS=<n>         force a width (for testing)
 PALETTE="${CLAUDE_STATUSLINE_PALETTE:-daltonized}"
@@ -85,7 +87,10 @@ esc() { printf -v "$1" '\033[38;2;%d;%d;%dm' "$2" "$3" "$4"; }
 #
 # Keep PAL_LO→PAL_MID→PAL_HI on the blue→red axis. That is what keeps the ramp
 # readable under protan and deuteran vision; a green→red ramp collapses.
-PALETTE_FILE="${CLAUDE_STATUSLINE_PALETTE_FILE:-}"
+# Falls back to a conventional path so a theme can drop a palette in place and
+# have it picked up with no env var to plumb through — which matters because
+# the status line is spawned by Claude Code, not by a shell you control.
+PALETTE_FILE="${CLAUDE_STATUSLINE_PALETTE_FILE:-$HOME/.config/claude-code-statusline/palette.sh}"
 if [ -n "$PALETTE_FILE" ] && [ -r "$PALETTE_FILE" ]; then
   # shellcheck disable=SC1090
   . "$PALETTE_FILE" 2>/dev/null || true

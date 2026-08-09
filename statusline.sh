@@ -264,13 +264,36 @@ while [ "$barw" -lt "$barw_max" ]; do
 done
 
 # ── Render ──
+# Bar style. "gradient" (default) interpolates each cell along LO→MID→HI.
+# "solid" paints the whole bar one colour, bucketed at the same 70/90
+# thresholds as the "!"/"!!" markers. Solid exists for themed setups: the
+# gradient's in-between cells are blended values that belong to no palette, so
+# on a themed terminal it reads as almost-right. Bucketing also matches
+# surfaces that can only carry one colour per row, so a fill looks the same
+# wherever it is shown. Fill level is still legible either way — that is what
+# the bar's length and the percentage are for.
+BAR_STYLE="${CLAUDE_STATUSLINE_BAR:-${PAL_BAR_STYLE:-gradient}}"
+
+bucket() { # → $BUCKET, the palette colour for a fill level
+  local p=$1
+  if   [ "$p" -ge 90 ]; then esc BUCKET "${HI[@]}"
+  elif [ "$p" -ge 70 ]; then esc BUCKET "${MID[@]}"
+  else                       esc BUCKET "${LO[@]}"
+  fi
+}
+
 bar=""
 if [ "$barw" -gt 0 ]; then
   if [ -n "$used_int" ]; then filled=$(( (used_int * barw + 50) / 100 )); else filled=0; fi
+  [ "$BAR_STYLE" = "solid" ] && bucket "${used_int:-0}"
   for (( i = 0; i < barw; i++ )); do
     if [ "$i" -lt "$filled" ]; then
-      grad $(( i * 100 / (barw - 1) ))
-      bar+="${GRAD}█"
+      if [ "$BAR_STYLE" = "solid" ]; then
+        bar+="${BUCKET}█"
+      else
+        grad $(( i * 100 / (barw - 1) ))
+        bar+="${GRAD}█"
+      fi
     else
       bar+="${C_EMPTY}░"
     fi
@@ -279,7 +302,11 @@ if [ "$barw" -gt 0 ]; then
 fi
 
 if [ -n "$used_int" ]; then
-  grad "$used_int"
+  if [ "$BAR_STYLE" = "solid" ]; then
+    bucket "$used_int"; GRAD="$BUCKET"
+  else
+    grad "$used_int"
+  fi
   ctx="${GRAD}${mark}${bar}${GRAD}${used_int}%${RESET}"
 else
   ctx="${bar}${C_EMPTY}--%${RESET}"
@@ -300,11 +327,14 @@ add "$ctx"
 
 if [ "$show_lim" = 1 ]; then
   lim_out=""
+  # Same bucketing as the bar under "solid", so every severity signal in the row
+  # uses the same three palette colours rather than mixing blended values in.
+  ramp() { if [ "$BAR_STYLE" = "solid" ]; then bucket "$1"; GRAD="$BUCKET"; else grad "$1"; fi; }
   if [ -n "$lim5h_int" ]; then
-    grad "$lim5h_int"; lim_out="${C_DIM}5h ${GRAD}${lim5h_int}%${RESET}"
+    ramp "$lim5h_int"; lim_out="${C_DIM}5h ${GRAD}${lim5h_int}%${RESET}"
   fi
   if [ -n "$lim7d_int" ]; then
-    grad "$lim7d_int"; lim_out="${lim_out:+$lim_out }${C_DIM}7d ${GRAD}${lim7d_int}%${RESET}"
+    ramp "$lim7d_int"; lim_out="${lim_out:+$lim_out }${C_DIM}7d ${GRAD}${lim7d_int}%${RESET}"
   fi
   add "$lim_out"
 fi

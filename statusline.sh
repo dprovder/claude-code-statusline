@@ -26,9 +26,11 @@
 #   `printf -v`, and git is a single invocation in the common case.
 #
 # Env overrides:
-#   CLAUDE_STATUSLINE_PALETTE=classic   original green→red gradient
-#   CLAUDE_STATUSLINE_RESERVE=<n>       columns kept clear for notifications
-#   CLAUDE_STATUSLINE_COLUMNS=<n>       force a width (for testing)
+#   CLAUDE_STATUSLINE_PALETTE=classic     original green→red gradient
+#   CLAUDE_STATUSLINE_PALETTE_FILE=<path> sourced RGB overrides, so a terminal
+#                                         theme can own the colours (see below)
+#   CLAUDE_STATUSLINE_RESERVE=<n>         columns kept clear for notifications
+#   CLAUDE_STATUSLINE_COLUMNS=<n>         force a width (for testing)
 PALETTE="${CLAUDE_STATUSLINE_PALETTE:-daltonized}"
 RESERVE="${CLAUDE_STATUSLINE_RESERVE:-14}"
 
@@ -71,6 +73,24 @@ BOLD=$'\033[1m'
 RESET=$'\033[0m'
 esc() { printf -v "$1" '\033[38;2;%d;%d;%dm' "$2" "$3" "$4"; }
 
+# An external palette file lets an editor/terminal theme own these colours, so
+# the status line matches its surroundings instead of approximating them. It is
+# sourced, not parsed — one file read, no subshell, which this hot path cares
+# about. Sourcing executes it: only point this at a file you control.
+#
+# It defines RGB triples; any it omits fall back to the built-in palette below,
+# so a file can restyle one segment without restating all of them:
+#   PAL_LO PAL_MID PAL_HI         severity ramp (low → mid → high)
+#   PAL_REPO PAL_BRANCH PAL_COST PAL_ADD PAL_DEL PAL_MODEL PAL_DIM PAL_EMPTY
+#
+# Keep PAL_LO→PAL_MID→PAL_HI on the blue→red axis. That is what keeps the ramp
+# readable under protan and deuteran vision; a green→red ramp collapses.
+PALETTE_FILE="${CLAUDE_STATUSLINE_PALETTE_FILE:-}"
+if [ -n "$PALETTE_FILE" ] && [ -r "$PALETTE_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$PALETTE_FILE" 2>/dev/null || true
+fi
+
 if [ "$PALETTE" = "classic" ]; then
   LO=(0 200 80); MID=(220 200 0); HI=(220 40 20)
   esc C_REPO 220 200 0;  esc C_BRANCH 0 190 190; esc C_COST 220 200 0
@@ -84,6 +104,20 @@ else
   esc C_EMPTY 128 128 128
 fi
 esc C_DIM 128 128 128
+
+# Apply whatever the palette file defined, over the built-ins. Each is optional,
+# so a partial file overrides only the segments it names.
+[ "${#PAL_LO[@]:-0}"  = 3 ] && LO=("${PAL_LO[@]}")
+[ "${#PAL_MID[@]:-0}" = 3 ] && MID=("${PAL_MID[@]}")
+[ "${#PAL_HI[@]:-0}"  = 3 ] && HI=("${PAL_HI[@]}")
+[ "${#PAL_REPO[@]:-0}"   = 3 ] && esc C_REPO   "${PAL_REPO[@]}"
+[ "${#PAL_BRANCH[@]:-0}" = 3 ] && esc C_BRANCH "${PAL_BRANCH[@]}"
+[ "${#PAL_COST[@]:-0}"   = 3 ] && esc C_COST   "${PAL_COST[@]}"
+[ "${#PAL_ADD[@]:-0}"    = 3 ] && esc C_ADD    "${PAL_ADD[@]}"
+[ "${#PAL_DEL[@]:-0}"    = 3 ] && esc C_DEL    "${PAL_DEL[@]}"
+[ "${#PAL_MODEL[@]:-0}"  = 3 ] && esc C_MODEL  "${PAL_MODEL[@]}"
+[ "${#PAL_EMPTY[@]:-0}"  = 3 ] && esc C_EMPTY  "${PAL_EMPTY[@]}"
+[ "${#PAL_DIM[@]:-0}"    = 3 ] && esc C_DIM    "${PAL_DIM[@]}"
 
 # Interpolate LO → MID → HI at position 0..100 into $GRAD
 grad() {

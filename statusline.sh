@@ -282,6 +282,13 @@ done
 # the bar's length and the percentage are for.
 BAR_STYLE="${CLAUDE_STATUSLINE_BAR:-${PAL_BAR_STYLE:-gradient}}"
 
+# Bar glyphs, so a palette can pick its own texture — e.g. braille for a grainy,
+# low-fidelity meter instead of solid blocks. Both must be single-width in the
+# terminal font or the bar's length stops tracking the value; braille and the
+# block-element range both qualify in the usual monospace fonts.
+BAR_FILL="${PAL_BAR_FILL:-█}"
+BAR_EMPTY="${PAL_BAR_EMPTY:-░}"
+
 bucket() { # → $BUCKET, the palette colour for a fill level
   local p=$1
   if   [ "$p" -ge 90 ]; then esc BUCKET "${HI[@]}"
@@ -297,19 +304,19 @@ if [ "$barw" -gt 0 ]; then
   for (( i = 0; i < barw; i++ )); do
     if [ "$i" -lt "$filled" ]; then
       if [ "$BAR_STYLE" = "solid" ]; then
-        bar+="${BUCKET}█"
+        bar+="${BUCKET}${BAR_FILL}"
       else
         grad $(( i * 100 / (barw - 1) ))
-        bar+="${GRAD}█"
+        bar+="${GRAD}${BAR_FILL}"
       fi
     elif [ "$BAR_STYLE" = "solid" ]; then
       # Trough in the fill colour, not C_EMPTY: "solid" means the bar is one
       # colour end to end, with █ vs ░ carrying the fill. A dimmed trough makes
       # it read as two bars, and it cannot be matched on surfaces that only get
       # one colour per row.
-      bar+="${BUCKET}░"
+      bar+="${BUCKET}${BAR_EMPTY}"
     else
-      bar+="${C_EMPTY}░"
+      bar+="${C_EMPTY}${BAR_EMPTY}"
     fi
   done
   bar+="${RESET} "
